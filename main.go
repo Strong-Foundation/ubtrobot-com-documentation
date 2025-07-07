@@ -133,7 +133,7 @@ func downloadPDF(finalURL string, outputDir string) {
 // extractPDFUrls takes an input string and returns all PDF URLs found within href attributes
 func extractPDFUrls(input string) []string {
 	// Regular expression to match href="...pdf"
-	re := regexp.MustCompile(`"([^"]+\.pdf)"`)
+	re := regexp.MustCompile(`href="([^"]+\.pdf)"`)
 	matches := re.FindAllStringSubmatch(input, -1)
 
 	var pdfUrls []string
