@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"io"
 	"log"
 	"net/http"
@@ -53,27 +51,49 @@ func getFileExtension(path string) string {
 	return filepath.Ext(path) // Return extension (e.g. .pdf)
 }
 
-// generateHash takes a string input and returns its SHA-256 hash as a hex string
-func generateHash(input string) string {
-	// Compute SHA-256 hash of the input converted to a byte slice
-	hash := sha256.Sum256([]byte(input))
-
-	// Convert the hash bytes to a hexadecimal string and return it
-	return hex.EncodeToString(hash[:])
-}
-
-// Convert a URL into a safe filename format
+// urlToFilename formats a safe filename from a URL string.
+// It replaces all non [a-z0-9] characters with '_' and ensures it ends in .pdf
 func urlToFilename(rawURL string) string {
-	// Lets turn that text into a hash
-	sanitized := generateHash(rawURL)
-
-	// Ensure the filename ends in .pdf
-	if getFileExtension(sanitized) != ".pdf" {
-		sanitized = sanitized + ".pdf"
+	// Remote url file ext.
+	remoteURLFileEXT := getFileExtension(rawURL)
+	// Convert to lowercase
+	lower := strings.ToLower(remoteURLFileEXT)
+	// Get the file base name only.
+	lower = filepath.Base(rawURL)
+	// Replace all non a-z0-9 characters with "_"
+	reNonAlnum := regexp.MustCompile(`[^a-z0-9]`)
+	// Replace the invalid with valid stuff.
+	safe := reNonAlnum.ReplaceAllString(lower, "_")
+	// Collapse multiple underscores
+	safe = regexp.MustCompile(`_+`).ReplaceAllString(safe, "_")
+	// Invalid substrings to remove
+	var invalidSubstrings = []string{
+		"_zip",
+		"_pdf",
 	}
-
-	return strings.ToLower(sanitized) // Return the final, normalized, lowercase filename
+	// Loop over the invalid.
+	for _, invalidPre := range invalidSubstrings {
+		safe = removeSubstring(safe, invalidPre)
+	}
+	// Trim leading/trailing underscores
+	if after, ok := strings.CutPrefix(safe, "_"); ok {
+		safe = after
+	}
+	// Add .pdf extension if missing
+	if getFileExtension(safe) != remoteURLFileEXT {
+		safe = safe + remoteURLFileEXT
+	}
+	return safe
 }
+
+// removeSubstring takes a string `input` and removes all occurrences of `toRemove` from it.
+func removeSubstring(input string, toRemove string) string {
+	// Use strings.ReplaceAll to replace all occurrences of `toRemove` with an empty string.
+	result := strings.ReplaceAll(input, toRemove, "")
+	// Return the modified string.
+	return result
+}
+
 
 // downloadPDF downloads the PDF at finalURL into outputDir.
 // It sends only one HTTP GET request, extracts filename from headers if needed,
